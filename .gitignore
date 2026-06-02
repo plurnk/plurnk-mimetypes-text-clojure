@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+*.log
+.DS_Store
+AGENTS.md
+
+# antlr-ng generated parser/lexer/visitor — built by `npm run build:grammar`.
+src/generated/*

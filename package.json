@@ -1,0 +1,58 @@
+{
+    "name": "@plurnk/plurnk-mimetypes-text-clojure",
+    "version": "0.1.0",
+    "description": "text/x-clojure mimetype handler for plurnk-service. ANTLR-backed extraction via grammars-v4.",
+    "type": "module",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=25"
+    },
+    "plurnk": {
+        "kind": "mimetype",
+        "handlers": [
+            {
+                "name": "text/x-clojure",
+                "glyph": "\ud83c\udf3f",
+                "extensions": [
+                    ".clj",
+                    ".cljs",
+                    ".cljc",
+                    ".edn"
+                ]
+            }
+        ]
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist/**/*",
+        "grammar/**/*",
+        "README.md"
+    ],
+    "scripts": {
+        "test:lint": "tsc --noEmit",
+        "test:unit": "node --test src/**/*.test.ts",
+        "test": "npm run test:lint && npm run test:unit",
+        "build:grammar": "plurnk-mimetypes-compile",
+        "build:dist": "tsc -p tsconfig.build.json",
+        "build": "npm run build:grammar && npm run build:dist",
+        "prepare": "npm run build"
+    },
+    "dependencies": {
+        "@plurnk/plurnk-mimetypes": "0.7.4",
+        "antlr4ng": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^25.8.0",
+        "antlr-ng": "^1.0.10",
+        "typescript": "^6.0.3"
+    }
+}
