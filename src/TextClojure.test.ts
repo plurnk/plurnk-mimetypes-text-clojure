@@ -145,17 +145,19 @@ describe("TextClojure — extract", () => {
 });
 
 describe("TextClojure — framework integration", () => {
-    it("renders extracted hierarchy via format()", () => {
+    it("renders extracted hierarchy via format()", async () => {
         const h = new TextClojure(metadata);
-        const out = h.symbolsRaw("(defn answer [] 42)");
+        const out = await h.symbolsRaw("(defn answer [] 42)");
         assert.ok(out.includes("function answer"));
     });
 
-    it("inherits jsonpath query against the symbol outline", async () => {
+    it("jsonpath dispatches against the deep-json ANTLR parse tree (issue #10)", async () => {
+        // Every ANTLR deep tree has a root with a `type` field — verify
+        // jsonpath reaches it via the deep-channel dispatch.
         const h = new TextClojure(metadata);
-        const src = "(defn add [a b] (+ a b))";
-        const f = await h.query(src, "jsonpath", "$.add");
-        assert.equal(f.length, 1);
+        const roots = await h.query("class Probe {}", "jsonpath", "$.type");
+        assert.equal(roots.length, 1);
+        assert.equal(typeof roots[0].matched, "string");
     });
 });
 
