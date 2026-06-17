@@ -42,9 +42,44 @@ export default class TextClojure extends AntlrExtractor {
 //   (defrecord R [fields])          → class; fields surface as field syms
 //   (deftype T [fields])            → class; fields → field
 //   (defstruct s ...)               → class
+// References channel (SPEC §16). Clojure is a Lisp: every form is
+// `(head arg...)`, so the head symbol of a call form is a function/macro
+// invocation → `call`. But special forms and core macros (def, defn, let, if,
+// ns, ->, …) are language scaffolding, not meaningful call edges — emitting
+// them would be pure noise. We capture call-form heads EXCEPT the curated
+// SPECIAL_FORMS skip-set. A `call` whose head name-joins a local `defn`/`def`
+// is an edge; external lib calls (`resp/response`) are dead rows, not noise
+// (SPEC §16 PRECISION OVER RECALL). Container = the enclosing top-level def/defn
+// (gateContainer).
+//
+// Conservative on host-interop noise: bare `.`/`/`, member access (`.method`),
+// and recur targets carry no name-join value and are excluded with the
+// special forms. Heads that don't resolve to a symbol (numbers, keywords,
+// nested lists in head position) emit nothing.
+const SPECIAL_FORMS: ReadonlySet<string> = new Set([
+    // definition / binding scaffolding
+    "def", "defn", "defn-", "defmacro", "defmulti", "defmethod",
+    "defprotocol", "defrecord", "deftype", "defstruct", "defonce",
+    "definline", "definterface", "declare", "ns", "in-ns",
+    // special forms (clojure.core specials)
+    "let", "let*", "fn", "fn*", "if", "if-not", "if-let", "if-some",
+    "when", "when-not", "when-let", "when-some", "when-first",
+    "do", "quote", "var", "loop", "loop*", "recur", "throw", "try",
+    "catch", "finally", "monitor-enter", "monitor-exit", "new", "set!",
+    "cond", "condp", "cond->", "cond->>", "case", "and", "or", "not",
+    // threading / binding macros
+    "->", "->>", "as->", "some->", "some->>", "doto",
+    "binding", "with-open", "with-local-vars", "with-redefs",
+    "with-bindings", "with-meta", "with-out-str", "dosync",
+    // sequence / iteration macros
+    "for", "doseq", "dotimes", "while", "doall", "dorun", "lazy-seq",
+    // quoting / macro plumbing
+    "quasiquote", "unquote", "unquote-splicing", "syntax-quote",
+    "comment", "assert", "import", "require", "use", "refer", "load",
+]);
+
 class TextClojureVisitor extends withExtractor(ClojureVisitor) {
     visitList_ = (ctx: any): null => {
-        if (this.inBody) return null;
         // First form's text identifies the macro/special form.
         const forms = collectChildren(ctx, "forms");
         if (forms.length === 0) return null;
@@ -52,7 +87,10 @@ class TextClojureVisitor extends withExtractor(ClojureVisitor) {
         const innerArr = Array.isArray(inner) ? inner : inner ? [inner] : [];
         if (innerArr.length < 1) return null;
         const head = (innerArr[0] as { getText?: () => string }).getText?.();
-        if (!head) return null;
+        if (!head) {
+            this.visitChildren(ctx);
+            return null;
+        }
 
         // Extract the second form's text as the declared name (where
         // applicable). Some forms (`defmethod`) consume more than two
@@ -70,7 +108,12 @@ class TextClojureVisitor extends withExtractor(ClojureVisitor) {
 
             case "def":
             case "defonce":
-                if (name) this.addSymbol("constant", name, ctx);
+                if (name) {
+                    this.addSymbol("constant", name, ctx);
+                    // The initializer expr can contain call forms — scope them
+                    // to this binding (SPEC §16 container = enclosing def).
+                    this.gateContainer(name, ctx);
+                }
                 return null;
 
             case "defn":
@@ -80,6 +123,8 @@ class TextClojureVisitor extends withExtractor(ClojureVisitor) {
                 if (name) {
                     const params = extractParamVector(innerArr);
                     this.addSymbol("function", name, ctx, params);
+                    // Body call forms are `call` refs scoped to this function.
+                    this.gateContainer(name, ctx);
                 }
                 return null;
 
@@ -90,6 +135,7 @@ class TextClojureVisitor extends withExtractor(ClojureVisitor) {
                 if (name) {
                     const display = dispatchText ? `${name} ${dispatchText}` : name;
                     this.addSymbol("function", display, ctx);
+                    this.gateContainer(display, ctx);
                 }
                 return null;
             }
@@ -118,9 +164,40 @@ class TextClojureVisitor extends withExtractor(ClojureVisitor) {
                 return null;
 
             default:
+                // Any other list is an expression. Classify its head as a
+                // `call` ref (unless special-form / host-interop noise), then
+                // recurse so nested call forms are reached too.
+                this.emitCallHead(innerArr[0], head);
+                this.visitChildren(ctx);
                 return null;
         }
     };
+
+    // Classify the head of a call form `(head arg...)` as a `call` ref unless
+    // it is a special form / core macro (SPECIAL_FORMS) or a host-interop /
+    // non-symbol head with no name-join value. Position comes from the head's
+    // symbol context (the callee name node, SPEC §16).
+    emitCallHead(headForm: unknown, head: string): void {
+        if (SPECIAL_FORMS.has(head)) return;
+        // Host interop with no local name-join: bare punctuation symbols and
+        // member access (`.method`).
+        if (head === "." || head === "/" || head.startsWith(".")) return;
+        const sym = headSymbolCtx(headForm);
+        if (!sym) return; // head is a number/keyword/string/vector/nested list
+        this.addRef("call", head, sym as never);
+    }
+}
+
+// A head form resolves to a symbol when it is `literal → symbol →
+// (simple_sym | ns_symbol)`. Returns the innermost symbol context (for
+// position) or null when the head isn't a symbol.
+function headSymbolCtx(form: unknown): unknown {
+    const lit = (form as { literal?: () => unknown } | undefined)?.literal?.();
+    if (!lit) return null;
+    const sym = (lit as { symbol?: () => unknown }).symbol?.();
+    if (!sym) return null;
+    const s = sym as { simple_sym?: () => unknown; ns_symbol?: () => unknown };
+    return s.simple_sym?.() ?? s.ns_symbol?.() ?? null;
 }
 
 // Find the first vector in the forms after the (defn/defmulti/etc) name
