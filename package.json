@@ -50,7 +50,7 @@
         "antlr4ng": "^3.0.0"
     },
     "devDependencies": {
-        "@plurnk/plurnk-mimetypes": "^0.15.32",
+        "@plurnk/plurnk-mimetypes": "^0.15.34",
         "@types/node": "^26.0.0",
         "antlr-ng": "^1.0.10",
         "typescript": "^6.0.3"
