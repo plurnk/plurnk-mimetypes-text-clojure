@@ -44,7 +44,9 @@
         "build:grammar": "plurnk-mimetypes-compile",
         "build:dist": "tsc -p tsconfig.build.json",
         "build": "npm run build:grammar && npm run build:dist",
-        "prepare": "npm run build"
+        "prepare": "npm run build",
+        "deps:fresh": "npm outdated",
+        "prepublishOnly": "npm run deps:fresh && npm audit --audit-level=moderate && npm test"
     },
     "dependencies": {
         "antlr4ng": "^3.0.0"
