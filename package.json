@@ -1,6 +1,6 @@
 {
     "name": "@plurnk/plurnk-mimetypes-text-clojure",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "description": "text/x-clojure mimetype handler for plurnk-service. ANTLR-backed extraction via grammars-v4.",
     "type": "module",
     "license": "MIT",
@@ -58,6 +58,6 @@
         "typescript": "^6.0.3"
     },
     "peerDependencies": {
-        "@plurnk/plurnk-mimetypes": "^0.16.0 || ^0.17.0 || ^0.18.0"
+        "@plurnk/plurnk-mimetypes": "^0.16.0 || ^0.17.0 || ^0.18.0 || ^0.19.0"
     }
 }
