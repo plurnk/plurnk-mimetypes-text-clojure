@@ -15,9 +15,10 @@ owned by `../plurnk-service/plurnk-mimetypes/SPEC.md`. A change that applies
 across handlers starts there and is then consumed here; do not add a parallel
 framework mechanism in this package.
 
-Keep the package's peer range and `plurnk.builtAgainst` declaration coherent
-with the framework release it actually supports. Preserve the independent
-package boundary and publication history.
+Declare compatibility through named peer dependency ranges and retain exact
+installed versions as test evidence. This package versions independently under
+SemVer; an unchanged compatible consumer does not release to match a framework
+number. Preserve the independent package boundary and publication history.
 
 ## Development
 

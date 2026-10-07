@@ -13,3 +13,8 @@ npm install @plurnk/plurnk-mimetypes-text-clojure
 ```
 
 Auto-discovered by `@plurnk/plurnk-mimetypes` when installed alongside it.
+
+## Versioning
+
+This package versions independently. Compatibility is declared by its dependency
+ranges; a Plurnk release does not require a release of this package.
