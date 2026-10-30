@@ -53,7 +53,7 @@
     },
     "devDependencies": {
         "@plurnk/plurnk-mimetypes": "^3.0.6",
-        "@types/node": "^26.6.5",
+        "@types/node": "^26.6.6",
         "antlr-ng": "^1.0.10",
         "typescript": "^7.0.2"
     },
